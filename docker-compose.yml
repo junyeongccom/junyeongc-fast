@@ -1,28 +1,31 @@
 version: '3.8'
+
 services:
-  fastapi:
-    build: .
-    container_name: fastapi-app
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-    environment:
-      DATABASE_URL: postgresql://myuser:mypassword@db:5432/mydatabase
-    volumes:
-      - .:/app
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
   db:
-    image: postgres:15
-    container_name: postgres-db
-    restart: always
+    image: postgres:15  
+    container_name: database
     environment:
-      POSTGRES_USER: myuser
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydatabase
+      POSTGRES_DB: my_database
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: always
+
+  backend:
+    build: .
+    container_name: backend
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://postgres:mypassword@db:5432/my_database
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    restart: always
+
 volumes:
   pgdata:
