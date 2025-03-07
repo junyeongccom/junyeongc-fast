@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./com/junyeongc/design_pattern/creational/singleton"
+    ]
+}

@@ -1,9 +1,8 @@
-version: '3.8'
-
 services:
-  db:
-    image: postgres:15  
-    container_name: database
+  database:
+    image: postgres:15
+    container_name: postgres_container
+    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mypassword
@@ -11,21 +10,21 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: always
+      - postgres_data:/var/lib/postgresql/data
 
-  backend:
+  fastapi:
     build: .
-    container_name: backend
+    container_name: fastapi_container
+    restart: always
     depends_on:
-      - db
-    environment:
-      DATABASE_URL: postgresql://postgres:mypassword@db:5432/my_database
+      - database
+    env_file:
+      - .env 
     ports:
       - "8000:8000"
     volumes:
       - .:/app
-    restart: always
+    command: [ "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload" ]
 
 volumes:
-  pgdata:
+  postgres_data:

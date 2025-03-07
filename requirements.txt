@@ -2,3 +2,5 @@ fastapi
 uvicorn
 asyncpg
 SQLAlchemy
+python-dotenv
+pytz

@@ -1,12 +1,11 @@
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, String
-
-Base = declarative_base()
+from sqlalchemy import Column, Integer, String
+from database import Base
 
 class Member(Base):
     __tablename__ = "members"
 
-    user_id = Column(String(15), primary_key=True)
-    email = Column(String(20), unique=True, nullable=False)
-    password = Column(String(15), nullable=False)
-    name = Column(String(10), nullable=False)
+    user_id = Column(Integer, primary_key=True, index=True) 
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False) 
+
