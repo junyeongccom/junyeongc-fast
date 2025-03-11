@@ -1,40 +1,33 @@
-
+from com.junyeongc.account.staff.manager.strategy.create_strategy import DefaultCreateStrategy, ValidatedCreateStrategy
+from com.junyeongc.account.staff.manager.strategy.delete_strategy import HardDeleteStrategy, SoftDeleteStrategy
+from com.junyeongc.account.staff.manager.strategy.retrieve_strategy import GetAllStrategy, GetDetailStrategy
+from com.junyeongc.account.staff.manager.strategy.update_strategy import FullUpdateStrategy, PartialUpdateStrategy
+from com.junyeongc.account.staff.manager.strategy.strategy_type import StrategyType
+from typing import Literal
 
 class ManagerFactory:
 
+    strategy_map = {
+        StrategyType.DEFAULT_CREATE: DefaultCreateStrategy(),
+        StrategyType.VALIDATED_CREATE: ValidatedCreateStrategy(),
+        StrategyType.GET_ALL: GetAllStrategy(),
+        StrategyType.GET_DETAIL: GetDetailStrategy(),
+        StrategyType.FULL_UPDATE: FullUpdateStrategy(),
+        StrategyType.PARTIAL_UPDATE: PartialUpdateStrategy(),
+        StrategyType.SOFT_DELETE: SoftDeleteStrategy(),
+        StrategyType.HARD_DELETE: HardDeleteStrategy(),
+    }
 
     @staticmethod
-    def create_manager(strategy, **kwargs):
+    async def execute(strategy: StrategyType, method: Literal["create", "retrieve", "update", "delete"], **kwargs):
         instance = ManagerFactory.strategy_map[strategy]
         if not instance:
-            raise Exception("Invalid strategy")
-        return instance.handle(**kwargs)
+            raise ValueError(f"Invalid strategy: {strategy}")
+        
+        if not hasattr(instance, method):
+            raise AttributeError(f"Strategy '{strategy}' does not have a '{method}' method.")
 
-    @staticmethod
-    def get_manager_detail(strategy, **kwargs):
-        instance = ManagerFactory.strategy_map[strategy]
-        if not instance:
-            raise Exception("Invalid strategy")
-        return instance.handle(**kwargs)
-    
-    @staticmethod
-    def get_manager_list(strategy, **kwargs):
-        instance = ManagerFactory.strategy_map[strategy]
-        if not instance:
-            raise Exception("Invalid strategy")
-        return instance.handle(**kwargs)
+        method_to_call = getattr(instance, method)
+        return method_to_call(**kwargs)
 
-    @staticmethod
-    def update_manager(strategy, **kwargs):
-        instance = ManagerFactory.strategy_map[strategy]
-        if not instance:
-            raise Exception("Invalid strategy")
-        return instance.handle(**kwargs)
-    
-    @staticmethod
-    def delete_manager(strategy, **kwargs):
-        instance = ManagerFactory.strategy_map[strategy]
-        if not instance:
-            raise Exception("Invalid strategy")
-        return instance.handle(**kwargs)
-    
+

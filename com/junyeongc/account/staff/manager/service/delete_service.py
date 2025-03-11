@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from sqlalchemy.orm import Session
-from com.junyeongc.account.guest.customer.model.customer_schema import CustomerSchema
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class DeleteService(ABC):
 
     @abstractmethod
-    def delete(self, db: Session, user_id: str):
+    async def delete(self, db: AsyncSession, user_id: str):
         pass
 
     

@@ -16,16 +16,14 @@ async def get_manager_detail():
 
 @router.get("/list")
 async def get_manager_list(db=Depends(get_db)):
-    print("🎉🎉 get_customers 로 진입함")
-    query = text("SELECT * FROM members")  # ✅ Raw SQL 사용
+    print("🎉🎉 get_managers 로 진입함")
+    query = "SELECT * FROM members"  
 
     try:
-        results = await db.fetch(query)  # ✅ `fetch()` 사용하여 모든 데이터 가져오기
-        print("💯🌈 데이터 조회 결과:", results)
-
-        # ✅ `dict(record)`를 사용하여 JSON 변환
-        customers = [dict(record) for record in results]
-        return {"customers": customers}
+        rows = await db.fetch(query)  
+        print("💯🌈 데이터 조회 결과:", rows)
+        managers = [dict(record) for record in rows]
+        return {"managers": managers}
     except Exception as e:
         print("⚠️ 데이터 조회 중 오류 발생:", str(e))
         return {"error": "데이터 조회 중 오류가 발생했습니다."}

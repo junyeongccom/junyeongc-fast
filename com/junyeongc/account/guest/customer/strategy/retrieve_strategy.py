@@ -1,10 +1,10 @@
 from com.junyeongc.account.guest.customer.service.retrieve_service import RetrieveService
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 class GetAllStrategy(RetrieveService):
-    def retrieve(self, db: Session, **kwargs):
+    async def retrieve(self, db: AsyncSession, **kwargs):
         pass
 
 class GetDetailStrategy(RetrieveService):
-    def retrieve(self, db: Session, user_id: str):
+    async def retrieve(self, db: AsyncSession, user_id: str):
         pass

@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from sqlalchemy.orm import Session
-from com.junyeongc.account.guest.customer.model.customer_schema import CustomerSchema
+from sqlalchemy.ext.asyncio import AsyncSession
+from com.junyeongc.account.staff.manager.model.manager_schema import ManagerSchema
 
 
 class UpdateService(ABC):
 
     @abstractmethod
-    def update(self, db: Session, update_customer: CustomerSchema):
+    async def update(self, db: AsyncSession, update_customer: ManagerSchema):
         pass

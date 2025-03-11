@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 
 class RetrieveService(ABC):
 
     @abstractmethod
-    def retrieve(self, db: Session, **kwargs):
+    async def retrieve(self, db: AsyncSession, **kwargs):
         pass
 

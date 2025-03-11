@@ -1,13 +1,23 @@
-from sqlalchemy.orm import Session
-from com.junyeongc.account.guest.customer.model.customer_schema import CustomerSchema
-from com.junyeongc.climate.service.create_service import CreateService
+from sqlalchemy.ext.asyncio import AsyncSession
+from com.junyeongc.account.staff.manager.model.manager_entity import ManagerEntity
+from com.junyeongc.account.staff.manager.model.manager_schema import ManagerSchema
+from com.junyeongc.account.staff.manager.service.create_service import CreateService
+
 
 
 class DefaultCreateRepository(CreateService):
-    def create(self, db: Session, new_customer: CustomerSchema):
+    async def create(self, db: AsyncSession, new_customer: ManagerSchema):
         print("😃😃Repository new_customer wjdqh:", new_customer)
-        pass
-
+        db.add(ManagerEntity(
+            user_id = new_customer.user_id,
+            name = new_customer.name,
+            password = new_customer.password,
+            email = new_customer.email
+        ))
+        db.commit()
+        db.refresh(new_customer)
+        return new_customer
+        
 class ValidatedCreateRepository(CreateService):
-    def create(self, db: Session, new_customer: CustomerSchema):
+    async def create(self, db: AsyncSession, new_customer: ManagerSchema):
         pass

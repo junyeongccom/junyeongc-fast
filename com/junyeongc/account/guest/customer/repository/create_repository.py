@@ -1,7 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from com.junyeongc.account.guest.customer.model.customer_entity import CustomerEntity
 from com.junyeongc.account.guest.customer.model.customer_schema import CustomerSchema
-from com.junyeongc.climate.service.create_service import CreateService
+from com.junyeongc.account.guest.customer.service.create_service import CreateService
+
 
 
 class DefaultCreateRepository(CreateService):

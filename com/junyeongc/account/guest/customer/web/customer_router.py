@@ -18,14 +18,12 @@ async def get_customer_detail():
 @router.get("/list")
 async def get_customer_list(db:AsyncSession=Depends(get_db)):  
     print("🎉🎉 get_customers 로 진입함")
-    query = text("SELECT * FROM members")  # ✅ Raw SQL 사용
+    query = "SELECT * FROM members"  
 
     try:
-        results = await db.fetch(query)  # ✅ `fetch()` 사용하여 모든 데이터 가져오기
-        print("💯🌈 데이터 조회 결과:", results)
-
-        # ✅ `dict(record)`를 사용하여 JSON 변환
-        customers = [dict(record) for record in results]
+        rows = await db.fetch(query)  
+        print("💯🌈 데이터 조회 결과:", rows)
+        customers = [dict(record) for record in rows]
         return {"customers": customers}
     except Exception as e:
         print("⚠️ 데이터 조회 중 오류 발생:", str(e))

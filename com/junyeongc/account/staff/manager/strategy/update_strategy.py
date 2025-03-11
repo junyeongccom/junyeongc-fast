@@ -1,11 +1,11 @@
-from sqlalchemy.orm import Session
 from com.junyeongc.account.staff.manager.service.update_service import UpdateService
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class FullUpdateStrategy(UpdateService):
-    def delete(self, db: Session, user_id: str):
+    async def update(self, db: AsyncSession, user_id: str):
         pass
 
 class PartialUpdateStrategy(UpdateService):
-    def delete(self, db: Session, user_id: str):
+    async def update(self, db: AsyncSession, user_id: str):
         pass

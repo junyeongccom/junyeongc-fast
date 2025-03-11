@@ -1,10 +1,11 @@
-from sqlalchemy.orm import Session
 from com.junyeongc.account.staff.manager.service.retrieve_service import RetrieveService
+from sqlalchemy.ext.asyncio import AsyncSession
 
-class GeatAllStrategy(RetrieveService):
-    def retrieve(self, db: Session, **kwargs):
+class GetAllStrategy(RetrieveService):
+    async def retrieve(self, db: AsyncSession, **kwargs):
         pass
 
-class GetListStrategy(RetrieveService):
-    def delete(self, db: Session, user_id: str):
+class GetDetailStrategy(RetrieveService):
+    async def retrieve(self, db: AsyncSession, user_id: str):
         pass
+
