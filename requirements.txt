@@ -4,3 +4,4 @@ asyncpg
 SQLAlchemy
 python-dotenv
 pytz
+email_validator

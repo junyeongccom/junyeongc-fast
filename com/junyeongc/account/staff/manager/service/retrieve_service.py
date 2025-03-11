@@ -1,7 +1,11 @@
+from abc import ABC, abstractmethod
+from sqlalchemy.orm import Session
 
 
 
-class RetrieveService():
-    
-    def handle(self, **kwargs):
+class RetrieveService(ABC):
+
+    @abstractmethod
+    def retrieve(self, db: Session, **kwargs):
         pass
+

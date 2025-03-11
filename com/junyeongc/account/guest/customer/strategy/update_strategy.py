@@ -1,4 +1,10 @@
-class UpdateStrategy:
+from sqlalchemy.orm import Session
+from com.junyeongc.account.guest.customer.service.update_service import UpdateService
 
-    def __init__(self):
+class FullUpdateStrategy(UpdateService):
+    def update(self, db: Session, user_id: str):
+        pass
+
+class PartialUpdateStrategy(UpdateService):
+    def update(self, db: Session, user_id: str):
         pass

@@ -3,7 +3,7 @@ from sqlalchemy import Column, String
 
 Base = declarative_base()
 
-class Member(Base):
+class UserEntity(Base):
     __tablename__ = "members"
 
     user_id = Column(String(15), primary_key=True, index=True)

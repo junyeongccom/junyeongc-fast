@@ -1,4 +1,10 @@
-class UpdateRepository:
+from sqlalchemy.ext.asyncio import AsyncSession
+from com.junyeongc.account.guest.customer.service.update_service import UpdateService
 
-    def __init__(self):
+class FullUpdateRepository(UpdateService):
+    async def delete(self, db: AsyncSession, user_id: str):
+        pass
+
+class PartialUpdateRepository(UpdateService):
+    async def delete(self, db: AsyncSession, user_id: str):
         pass

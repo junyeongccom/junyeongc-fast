@@ -1,4 +1,11 @@
-class RetrieveService:
+from abc import ABC, abstractmethod
+from sqlalchemy.ext.asyncio import AsyncSession
 
-    def __init__(self):
+
+
+class RetrieveService(ABC):
+
+    @abstractmethod
+    async def retrieve(self, db: AsyncSession, **kwargs):
         pass
+

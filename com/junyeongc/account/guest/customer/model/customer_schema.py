@@ -1,4 +1,4 @@
-class CustomerSchema:
+from com.junyeongc.account.common.user.model.user_schema import UserSchema
 
-    def __init__(self):
-        pass
+class CustomerSchema(UserSchema):
+    pass

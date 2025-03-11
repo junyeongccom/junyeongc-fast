@@ -1,4 +1,10 @@
-class RetrieveStrategy:
+from com.junyeongc.account.guest.customer.service.retrieve_service import RetrieveService
+from sqlalchemy.orm import Session
 
-    def __init__(self):
+class GetAllStrategy(RetrieveService):
+    def retrieve(self, db: Session, **kwargs):
+        pass
+
+class GetDetailStrategy(RetrieveService):
+    def retrieve(self, db: Session, user_id: str):
         pass
