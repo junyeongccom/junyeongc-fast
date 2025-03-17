@@ -63,3 +63,7 @@ async def get_db():
 
     async with db_pool.acquire() as connection:  # ✅ `async with` 사용하여 자동 해제
         yield connection
+
+
+#try 
+#    yield db

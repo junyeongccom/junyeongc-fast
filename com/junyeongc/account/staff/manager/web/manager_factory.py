@@ -4,6 +4,7 @@ from com.junyeongc.account.staff.manager.strategy.retrieve_strategy import GetAl
 from com.junyeongc.account.staff.manager.strategy.update_strategy import FullUpdateStrategy, PartialUpdateStrategy
 from com.junyeongc.account.staff.manager.strategy.strategy_type import StrategyType
 from typing import Literal
+from sqlalchemy.ext.asyncio import AsyncSession
 
 class ManagerFactory:
 
@@ -19,8 +20,13 @@ class ManagerFactory:
     }
 
     @staticmethod
-    async def execute(strategy: StrategyType, method: Literal["create", "retrieve", "update", "delete"], **kwargs):
-        instance = ManagerFactory.strategy_map[strategy]
+    async def execute(
+        strategy: StrategyType, 
+        method: Literal["create", "retrieve", "update", "delete"], 
+        db: AsyncSession,
+        **kwargs
+    ):
+        instance = ManagerFactory.strategy_map.get(strategy)
         if not instance:
             raise ValueError(f"Invalid strategy: {strategy}")
         
@@ -28,6 +34,13 @@ class ManagerFactory:
             raise AttributeError(f"Strategy '{strategy}' does not have a '{method}' method.")
 
         method_to_call = getattr(instance, method)
-        return method_to_call(**kwargs)
 
+        # 비동기 메서드 여부 확인 후 실행
+        if callable(method_to_call):
+            if method == "retrieve":  # retrieve는 비동기 실행
+                return await method_to_call(db=db, **kwargs)
+            else:
+                return await method_to_call(db=db, **kwargs)
+        else:
+            raise TypeError(f"Method '{method}' is not callable.")
 

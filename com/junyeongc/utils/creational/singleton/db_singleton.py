@@ -40,9 +40,10 @@ class DatabaseSingleton:
 
 
         if is_docker:
-            self.db_hostname = os.getenv("DB_HOSTNAME", "db")
+            # Docker 컨테이너 내부에서 호스트 시스템에 접근하기 위해 host.docker.internal 사용
+            self.db_hostname = "host.docker.internal"
         else:
-            self.db_hostname = os.getenv("DB_HOSTNAME", "localhost")
+            self.db_hostname = os.getenv("DB_HOSTNAME") or "localhost"
 
 
 
