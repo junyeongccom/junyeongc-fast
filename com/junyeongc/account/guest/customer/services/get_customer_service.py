@@ -5,16 +5,11 @@ from com.junyeongc.utils.creational.abstract.abstract_service import AbstractSer
 
 class GetAll(AbstractService):
     async def handle(self, db: AsyncSession, **kwargs):
-        return await self.retrieve(db, **kwargs)
-        
-    async def retrieve(self, db: AsyncSession, **kwargs):
         repository = GetAllRepository()
         return await repository.retrieve(db, **kwargs)
 
 class GetDetail(AbstractService):
     async def handle(self, db: AsyncSession, **kwargs):
         user_id = kwargs.get('user_id')
-        return await self.retrieve(db, user_id)
-        
-    async def retrieve(self, db: AsyncSession, user_id: str):
-        pass
+        repository = GetDetailRepository()
+        return await repository.retrieve(db, user_id)

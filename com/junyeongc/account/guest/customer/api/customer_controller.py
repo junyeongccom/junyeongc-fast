@@ -11,7 +11,6 @@ class CustomerController:
         if db:
             return await CustomerFactory.execute(
                 strategy=StrategyType.CREATE_CUSTOMER, 
-                method="create", 
                 db=db, 
                 **kwargs
             )
@@ -21,7 +20,6 @@ class CustomerController:
         if db:
             return await CustomerFactory.execute(
                 strategy=StrategyType.GET_DETAIL, 
-                method="retrieve", 
                 db=db, 
                 **kwargs
             )
@@ -30,7 +28,6 @@ class CustomerController:
     async def get_customer_list(self, db, **kwargs):
         return await CustomerFactory.execute(
             strategy=StrategyType.GET_ALL, 
-            method="retrieve", 
             db=db, 
             **kwargs
         )
@@ -39,7 +36,6 @@ class CustomerController:
         if db:
             return await CustomerFactory.execute(
                 strategy=StrategyType.FULL_UPDATE, 
-                method="update", 
                 db=db, 
                 **kwargs
             )
@@ -49,7 +45,6 @@ class CustomerController:
         if db:
             return await CustomerFactory.execute(
                 strategy=StrategyType.DELETE_CUSTOMER, 
-                method="delete", 
                 db=db, 
                 **kwargs
             )

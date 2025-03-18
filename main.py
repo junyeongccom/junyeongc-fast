@@ -30,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],  # 모든 HTTP 헤더 허용
 )
 
-app.include_router(app_router)
+app.include_router(app_router, prefix="/api")
 
 @app.get(path="/")
 async def home():

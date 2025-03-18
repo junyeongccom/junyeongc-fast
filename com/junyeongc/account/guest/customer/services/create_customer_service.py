@@ -4,27 +4,22 @@ from com.junyeongc.account.guest.customer.storage.create_customer import Default
 from com.junyeongc.utils.creational.abstract.abstract_service import AbstractService
 
 
-class CustomerCreate(AbstractService):
+class CreateCustomer(AbstractService):
 
     async def handle(self, db: AsyncSession, **kwargs):
-        new_customer = kwargs.get('customer_data')
-        customer_repo = DefaultCreateRepository()
-        return await customer_repo.create(db, new_customer)
-
-# 팩토리 패턴에서 사용할 전략 클래스 추가
-class DefaultCreateStrategy:
-    async def create(self, db: AsyncSession, **kwargs):
+        # 모든 로직을 handle 메서드로 통합
         customer_data = kwargs.get('customer_data')
-        print("🔍 DefaultCreateStrategy에서 받은 데이터:", customer_data)
-        customer_service = CustomerCreate()
-        return await customer_service.handle(db, customer_data=customer_data)
+        print("🔍 CreateCustomer에서 받은 데이터:", customer_data)
+        customer_repo = DefaultCreateRepository()
+        return await customer_repo.create(db, customer_data)
 
-class ValidatedCreateStrategy:
-    async def create(self, db: AsyncSession, **kwargs):
+# ValidatedCreateStrategy는 handle 메서드로 변경
+class ValidatedCreateStrategy(AbstractService):
+    async def handle(self, db: AsyncSession, **kwargs):
         # 유효성 검사 로직 추가
         customer_data = kwargs.get('customer_data')
         print("🔍 ValidatedCreateStrategy에서 받은 데이터:", customer_data)
         # 여기에 유효성 검사 코드 추가
         
-        customer_service = CustomerCreate()
+        customer_service = CreateCustomer()
         return await customer_service.handle(db, customer_data=customer_data)
