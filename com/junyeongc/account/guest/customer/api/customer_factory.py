@@ -1,4 +1,4 @@
-from com.junyeongc.account.guest.customer.models.customer_action import StrategyType
+from com.junyeongc.account.guest.customer.models.customer_action import StrategyType, CustomerAction
 from com.junyeongc.account.guest.customer.services.create_customer_service import CreateCustomer
 from com.junyeongc.account.guest.customer.services.delete_customer_service import DeleteCustomer, RemoveCustomer 
 from com.junyeongc.account.guest.customer.services.get_customer_service import GetAll, GetDetail
@@ -28,10 +28,15 @@ class CustomerFactory:
 
     @staticmethod
     async def execute(
-        strategy: StrategyType, 
-        db: AsyncSession = None,
+        strategy, 
         **kwargs
     ):
+        # CustomerAction이나 StrategyType 모두 사용 가능하도록 처리
+        if isinstance(strategy, CustomerAction):
+            # CustomerAction을 StrategyType으로 변환
+            strategy_value = strategy.value
+            strategy = StrategyType(strategy_value)
+        
         instance = CustomerFactory.strategy_map.get(strategy)
         if not instance:
             raise ValueError(f"Invalid strategy: {strategy}")
@@ -40,8 +45,7 @@ class CustomerFactory:
             raise AttributeError(f"Strategy '{strategy}' does not have a 'handle' method.")
 
         # 항상 handle 메소드 호출
-        if db:
-            return await instance.handle(db=db, **kwargs)
+        return await instance.handle(**kwargs)
 
     # 고객 관련 메서드들
     @staticmethod
