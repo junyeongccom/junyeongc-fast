@@ -3,27 +3,33 @@ from fastapi.responses import HTMLResponse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from com.junyeongc.app_router import router as app_router 
+import logging
+import os
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
 # CORS 미들웨어를 가장 먼저 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # 로컬 개발 서버
-        "https://localhost:3000",  # HTTPS 로컬 개발 서버
-        "https://haueull-chun-fast.onrender.com",  # 백엔드 배포 URL
-    ],
-    allow_credentials=True,  # 자격 증명 허용
-    allow_methods=["*"],  # 모든 HTTP 메서드 허용
-    allow_headers=["*"],  # 모든 헤더 허용
+    allow_origins=["*"],  # 개발 중에는 모든 도메인 허용 (필요시 특정 도메인으로 제한)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-
+# API 라우터 추가
 app.include_router(app_router, prefix="/api")
-
 
 @app.get(path="/")
 async def home():
+    logger.info("루트 경로 접속됨")
     return HTMLResponse(content=f"""
 <body>
 <div style="width: 400px; margin: 50 auto;">
@@ -31,7 +37,13 @@ async def home():
 </div>
 </body>
 """)
-# current_time: Callable[[], str] = lambda: datetime.now(timezone('Asia/Seoul')).strftime("%Y-%m-%d %H:%M:%S")
-#    <h2>{current_time()}</h2>
+
+# 시작 시 환경 정보 로깅
+@app.on_event("startup")
+async def startup_event():
+    logger.info("======== 서버 시작 ========")
+    logger.info(f"환경: {os.environ.get('ENVIRONMENT', '개발')}")
+    logger.info(f"데이터베이스 URL: {'설정됨 (보안상 내용 표시 안함)' if os.environ.get('DATABASE_URL') else '로컬 설정 사용'}")
+    logger.info("==========================")
 
 

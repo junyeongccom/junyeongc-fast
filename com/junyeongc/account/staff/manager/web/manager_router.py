@@ -2,6 +2,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from com.junyeongc.account.staff.manager.web.manager_controller import ManagerController
 from com.junyeongc.utils.creational.builder.db_builder import get_db
+import logging
+
+# 로거 설정
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 controller = ManagerController()
@@ -16,17 +20,23 @@ async def get_manager_detail():
 
 @router.get("/list")
 async def get_manager_list(db=Depends(get_db)):
-    print("🎉🎉 get_managers 로 진입함")
-    query = "SELECT * FROM members"  
+    logger.info("🎉 get_managers 엔드포인트 호출됨")
+    # text() 함수로 SQL 쿼리 감싸기
+    query = text("SELECT * FROM members")  
 
     try:
+        logger.info(f"💬 실행할 쿼리: {query}")
         rows = await db.fetch(query)  
-        print("💯🌈 데이터 조회 결과:", rows)
+        logger.info(f"💯 데이터 조회 결과: {len(rows)}개 행 반환됨")
+        
         managers = [dict(record) for record in rows]
         return {"managers": managers}
     except Exception as e:
-        print("⚠️ 데이터 조회 중 오류 발생:", str(e))
-        return {"error": "데이터 조회 중 오류가 발생했습니다."}
+        error_msg = f"⚠️ 데이터 조회 중 오류 발생: {str(e)}"
+        logger.error(error_msg)
+        import traceback
+        logger.error(traceback.format_exc())
+        return {"status": "error", "message": f"데이터 조회 중 오류가 발생했습니다: {str(e)}"}
     
 @router.post(path="/update")
 async def update_manager():

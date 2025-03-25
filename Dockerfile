@@ -11,5 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 프로젝트 파일 전체 복사
 COPY . .
 
-# FastAPI 실행
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# 환경 변수 설정
+ENV ENVIRONMENT=production
+ENV PYTHONUNBUFFERED=1
+
+# FastAPI 실행 (개발 모드의 --reload 옵션 제거)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
