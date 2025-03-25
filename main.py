@@ -20,7 +20,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 개발 중에는 모든 도메인 허용 (필요시 특정 도메인으로 제한)
-    allow_credentials=True,  # 자격 증명 허용 (쿠키 등)
+    allow_credentials=False,  # 자격 증명 허용하지 않음 (쿠키 등 사용하지 않음)
     allow_methods=["*"],
     allow_headers=["*"],
 )
