@@ -1,1 +1,0 @@
-from com.junyeongc.auth.user.api.user_router import router 

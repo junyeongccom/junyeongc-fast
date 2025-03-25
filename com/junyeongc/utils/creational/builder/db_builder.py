@@ -1,69 +1,122 @@
+# Async Database Builder
 import os
 import asyncpg
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from com.junyeongc.utils.creational.builder.query_builder import QueryBuilder
 from com.junyeongc.utils.creational.singleton.db_singleton import db_singleton
 
-# ✅ 1. DatabaseBuilder: SQLAlchemy 엔진 및 세션 빌더
+
 class DatabaseBuilder:
     def __init__(self):
         if not hasattr(db_singleton, "db_url"):
             raise AttributeError("⚠️ db_singleton 인스턴스에 'db_url' 속성이 존재하지 않습니다.")
-       
-        print(f"✅ Initializing DatabaseBuilder... db_url: {db_singleton.db_url}")  # 디버깅
+        
+        print(f"✅ Initializing DatabaseBuilder... db_url: {db_singleton.db_url}")
 
         self.database_url = db_singleton.db_url
-        self.min_size = 1
-        self.max_size = 10
-        self.timeout = 60
-        self.pool = None
-
-    def pool_size(self, min_size: int = 1, max_size: int = 10):
-        self.min_size = min_size
-        self.max_size = max_size
-        return self
-
-    def set_timeout(self, timeout: int = 60):
-        self.timeout = timeout
-        return self
+        self.engine = None
+        self.async_session = None
 
     async def build(self):
         if not self.database_url:
             raise ValueError("⚠️ Database URL must be set before building the database")
 
-        print(f"🚀 Connecting to PostgreSQL: {self.database_url}")  # 디버깅
+        print(f"🚀 Connecting to PostgreSQL: {self.database_url}")
 
-        self.pool = await asyncpg.create_pool(
-            dsn=self.database_url,
-            min_size=self.min_size,
-            max_size=self.max_size,
-            timeout=self.timeout,
+        # SQLAlchemy async engine 생성
+        self.engine = create_async_engine(
+            self.database_url,
+            echo=True,  # SQL 로그 출력
+            pool_size=5,
+            max_overflow=10
         )
-        return self.pool  # ✅ `AsyncDatabase` 대신 `self.pool` 반환 (싱글톤 패턴 유지)
 
-# ✅ 글로벌 DB 풀을 생성 (싱글톤 적용)
-db_pool = None
+        # AsyncSession 생성
+        async_session = sessionmaker(
+            self.engine,
+            class_=AsyncSession,
+            expire_on_commit=False
+        )
+
+        return AsyncDatabase(self.engine, async_session)
+
+
+class AsyncDatabase:
+    def __init__(self, engine, async_session):
+        self.engine = engine
+        self.async_session = async_session
+
+    async def fetch(self, query: str, *args):
+        async with self.async_session() as session:
+            result = await session.execute(query, args)
+            return result.fetchall()
+
+    async def execute(self, query: str, *args):
+        async with self.async_session() as session:
+            result = await session.execute(query, args)
+            await session.commit()
+            return result
+
+    async def close(self):
+        await self.engine.dispose()
+
+
+# ✅ 3. FastAPI와 연동을 위한 Database Session Generator
+# def get_db():
+#     """SQLAlchemy 세션을 제공하는 FastAPI 종속성"""
+#     db = session_local()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 async def get_db():
-    global db_pool
-    load_dotenv()
-
     if not hasattr(db_singleton, "db_url") or not db_singleton.db_url:
-        print("⚠️ db_singleton이 올바르게 초기화되지 않았습니다. 환경 변수를 다시 로드합니다.")
-        db_singleton.db_url = os.getenv("DB_URL")
-       
-        if not db_singleton.db_url:
-            raise AttributeError("❌ 환경 변수를 다시 로드했지만 'db_url'이 설정되지 않았습니다. .env 파일을 확인하세요.")
+        raise AttributeError("❌ db_singleton이 올바르게 초기화되지 않았습니다.")
 
-    print(f"✅ db_singleton 초기화 확인: {db_singleton.db_url}")  # Debug 로그
+    print(f"✅ db_singleton 초기화 확인: {db_singleton.db_url}")
 
-    # ✅ 커넥션 풀이 없는 경우 새로운 풀 생성
-    if db_pool is None:
-        builder = DatabaseBuilder()
-        db_pool = await builder.build()
+    builder = DatabaseBuilder()
+    db = await builder.build()
 
-    async with db_pool.acquire() as connection:  # ✅ `async with` 사용하여 자동 해제
-        yield connection
+    try:
+        yield db
+    finally:
+        await db.close()
 
 
-#try 
-#    yield db
+# ✅ 4. 초기화 함수 (비동기 DB 테이블 생성)
+async def init_db():
+    """데이터베이스 초기화"""
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        raise e
+
+
+# ✅ 5. 사용 예시
+if __name__ == "__main__":
+    # 🔹 SQLAlchemy DB 설정 빌드
+    db_builder = (
+        DatabaseBuilder()
+        .echo(True)
+        .future(True)
+        .build()
+    )
+
+    engine = db_builder._engine
+    session_local = db_builder._session_local
+    Base = db_builder._base
+
+    # 🔹 pymysql 쿼리 실행 예시
+    query_result = (
+        QueryBuilder()
+        .connect()
+        .query("SELECT * FROM users")
+        .execute()
+    )
+    
+    print(f"Query Result: {query_result}")

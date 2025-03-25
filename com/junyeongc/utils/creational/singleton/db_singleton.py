@@ -1,73 +1,44 @@
+# ✅ 단순화된 환경 변수 로드
 import os
 from threading import Lock
 from dotenv import load_dotenv
 
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../"))
-load_dotenv(os.path.join(project_root, ".env"))
+load_dotenv()
 
+class DataBaseSingleton:
 
-class DatabaseSingleton:
     _instance = None
-    _lock = Lock()
-
+    _lock = Lock()  # :white_check_mark: 멀티스레드 환경에서도 안전하게 인스턴스를 생성하도록 락 사용
 
     def __new__(cls):
+        """싱글톤 인스턴스 생성"""
         if not cls._instance:
-            with cls._lock:
+            with cls._lock:  # :white_check_mark: 멀티스레드 환경에서 안전하게 인스턴스 생성
                 if not cls._instance:
                     cls._instance = super().__new__(cls)
-                    print("✅ DatabaseSingleton: Creating new instance")
                     cls._instance._initialize()
         return cls._instance
-
-
+    
     def _initialize(self):
-        print("✅ DatabaseSingleton: Running _initialize()")
-
-
-        is_docker = os.path.exists('/.dockerenv') or os.environ.get('DOCKER_CONTAINER') == 'true'
-
-
-
-
-        self.db_hostname = os.getenv("DB_HOSTNAME")
-        self.db_username = os.getenv("DB_USERNAME")
-        self.db_password = os.getenv("DB_PASSWORD")
-        self.db_port = int(os.getenv("DB_PORT", 5432))
-        self.db_database = os.getenv("DB_DATABASE")
-        self.db_charset = os.getenv("DB_CHARSET")
-
-
-        if is_docker:
-            # Docker 컨테이너 내부에서 호스트 시스템에 접근하기 위해 host.docker.internal 사용
-            self.db_hostname = "host.docker.internal"
-        else:
-            self.db_hostname = os.getenv("DB_HOSTNAME") or "localhost"
-
-
-
-
-        print(f"🔹 Loaded Config - DB_HOSTNAME: {self.db_hostname}, DB_USERNAME: {self.db_username}, DB_DATABASE: {self.db_database}")
-
-
+        """환경 변수 값을 로드하여 설정 초기화"""
+        self.db_hostname = os.getenv("DB_HOSTNAME", "database")
+        self.db_username = os.getenv("DB_USERNAME", "postgres")
+        self.db_password = os.getenv("DB_PASSWORD", "mypassword")
+        self.db_port = int(os.getenv("DB_PORT", "5432"))
+        self.db_database = os.getenv("DB_DATABASE", "my_database")
+        self.db_charset = os.getenv("DB_CHARSET", "utf8mb4")
 
 
         # ✅ 환경 변수 검증
         if None in (self.db_hostname, self.db_username, self.db_password, self.db_database):
             raise ValueError("⚠️ Database 환경 변수가 설정되지 않았습니다.")
-        # ✅ PostgreSQL에 맞는 URL 형식
-        self.db_url = f"postgresql://{self.db_username}:{self.db_password}@{self.db_hostname}:{self.db_port}/{self.db_database}"
+
+        # ✅ PostgreSQL에 맞는 URL 형식 (asyncpg 드라이버 사용)
+        self.db_url = f"postgresql+asyncpg://{self.db_username}:{self.db_password}@{self.db_hostname}:{self.db_port}/{self.db_database}"
 
 
-        print(f"🛠️ Database URL: {self.db_url}")  # DSN 출력
-        print(f"🛠️ DB Hostname: {self.db_hostname}")  # 호스트네임 출력
+# ✅ 싱글톤 인스턴스 생성
+db_singleton = DataBaseSingleton()
 
-
-
-
-
-
-# ✅ 싱글톤 인스턴스를 생성하여 FastAPI 실행 시 자동으로 로드됨
-db_singleton = DatabaseSingleton()
-print("❗❗❗", db_singleton.db_url)
+print("💯 db_singleton.db_url ▶️",db_singleton.db_url)
