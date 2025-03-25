@@ -31,7 +31,7 @@ class DataBaseSingleton:
         
         # DATABASE_URL이 있으면 이를 우선적으로 사용
         if database_url:
-            logger.info("✅ Render.com DATABASE_URL 환경 변수를 사용합니다.")
+            logger.info("✅ DATABASE_URL 환경 변수를 사용합니다.")
             
             # Render의 DATABASE_URL은 postgres://user:password@host:port/dbname 형식일 수 있음
             # PostgreSQL+asyncpg는 postgresql+asyncpg://user:password@host:port/dbname 형식 필요
