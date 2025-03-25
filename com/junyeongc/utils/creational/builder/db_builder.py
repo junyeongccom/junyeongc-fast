@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from com.junyeongc.utils.creational.builder.query_builder import QueryBuilder
 from com.junyeongc.utils.creational.singleton.db_singleton import db_singleton
+import traceback
 
 
 class DatabaseBuilder:
@@ -49,16 +50,45 @@ class AsyncDatabase:
         self.engine = engine
         self.async_session = async_session
 
-    async def fetch(self, query: str, *args):
-        async with self.async_session() as session:
-            result = await session.execute(query, args)
-            return result.fetchall()
+    async def fetch(self, query, *args):
+        try:
+            print(f"🔍 실행할 쿼리: {query}")
+            print(f"🔢 쿼리 매개변수: {args}")
+            
+            async with self.async_session() as session:
+                # 쿼리가 문자열인 경우 text() 함수로 감싸기
+                if isinstance(query, str):
+                    print("💬 문자열 쿼리를 SQLAlchemy text() 객체로 변환합니다.")
+                    query = text(query)
+                
+                result = await session.execute(query, args)
+                rows = result.fetchall()
+                print(f"✅ 쿼리 실행 결과: {len(rows)}개의 행 반환됨")
+                return rows
+        except Exception as e:
+            print(f"❌ 쿼리 실행 중 오류 발생: {str(e)}")
+            traceback.print_exc()
+            raise
 
-    async def execute(self, query: str, *args):
-        async with self.async_session() as session:
-            result = await session.execute(query, args)
-            await session.commit()
-            return result
+    async def execute(self, query, *args):
+        try:
+            print(f"🔨 실행할 쿼리: {query}")
+            print(f"🔢 쿼리 매개변수: {args}")
+            
+            async with self.async_session() as session:
+                # 쿼리가 문자열인 경우 text() 함수로 감싸기
+                if isinstance(query, str):
+                    print("💬 문자열 쿼리를 SQLAlchemy text() 객체로 변환합니다.")
+                    query = text(query)
+                
+                result = await session.execute(query, args)
+                await session.commit()
+                print("✅ 쿼리가 성공적으로 실행되고 커밋되었습니다.")
+                return result
+        except Exception as e:
+            print(f"❌ 쿼리 실행 중 오류 발생: {str(e)}")
+            traceback.print_exc()
+            raise
 
     async def close(self):
         await self.engine.dispose()

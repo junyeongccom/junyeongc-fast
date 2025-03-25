@@ -8,10 +8,14 @@ app = FastAPI()
 # CORS 미들웨어를 가장 먼저 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 임시로 모든 origin 허용
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[
+        "http://localhost:3000",  # 로컬 개발 서버
+        "https://localhost:3000",  # HTTPS 로컬 개발 서버
+        "https://haueull-chun-fast.onrender.com",  # 백엔드 배포 URL
+    ],
+    allow_credentials=True,  # 자격 증명 허용
+    allow_methods=["*"],  # 모든 HTTP 메서드 허용
+    allow_headers=["*"],  # 모든 헤더 허용
 )
 
 
