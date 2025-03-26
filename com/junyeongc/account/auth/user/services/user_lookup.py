@@ -24,10 +24,10 @@ class Login(AbstractService):
             check_stmt, check_params = get_check_user_id_stmt(user_id)
             check_result: Result = await db.execute(check_stmt, check_params)
 
-            row_exists = check_result.fetchone()
-            print(f"👤 사용자 ID 존재 확인 결과: {row_exists is not None}")
+            user_exists = check_result.fetchone()
+            print(f"👤 사용자 ID 존재 확인 결과: {user_exists is not None}")
 
-            if row_exists is None:
+            if user_exists is None:
                 return {
                     "status": "error",
                     "message": "고객에서 등록된 ID가 없습니다",
@@ -38,10 +38,10 @@ class Login(AbstractService):
             login_stmt, login_params = get_login_stmt(user_id, password)
             login_result: Result = await db.execute(login_stmt, login_params)
 
-            row = login_result.fetchone()
-            print(f"🔐 로그인 결과: {row is not None}")
+            logged_in_user = login_result.fetchone()
+            print(f"🔐 로그인 결과: {logged_in_user is not None}")
 
-            if row is None:
+            if logged_in_user is None:
                 return {
                     "status": "error",
                     "message": "비밀번호가 일치하지 않습니다",
@@ -49,7 +49,7 @@ class Login(AbstractService):
                 }
 
             # 3단계: 로그인 성공
-            user_data = dict(row._mapping)
+            user_data = dict(logged_in_user._mapping)
             # 비밀번호 필드 제거
             user_data.pop('password', None)
             
