@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from com.junyeongc.app_router import router as app_router 
+from com.hc_fast.app_router import router as app_router 
 import logging
 import os
 import traceback
