@@ -4,6 +4,8 @@ from threading import Lock
 from dotenv import load_dotenv
 import re
 import logging
+import socket
+import time
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -49,15 +51,36 @@ class DataBaseSingleton:
             else:
                 logger.warning(f"⚠️ 인식되지 않은 데이터베이스 URL 형식: {database_url[:10]}...")
             
-            # IP 주소 대신 도메인을 사용하는 경우 로그 출력
+            # 호스트 이름을 처리하는 부분
             try:
                 # 호스트 추출 (user:password@host:port/dbname에서 host 부분)
                 host_match = re.search(r'@([^:]+)(:|/)', database_url)
                 if host_match:
                     host = host_match.group(1)
-                    # IP 주소 형식이 아닌 경우만 확인
+                    # IP 주소 형식이 아닌 경우 DNS 확인 시도
                     if not re.match(r'^\d+\.\d+\.\d+\.\d+$', host):
-                        logger.info(f"ℹ️ 호스트에 도메인 이름을 사용 중입니다: {host}")
+                        logger.info(f"ℹ️ 호스트 도메인 이름을 확인 중입니다: {host}")
+                        try:
+                            # DNS 조회를 위한 최대 3번의 시도
+                            max_attempts = 3
+                            for attempt in range(max_attempts):
+                                try:
+                                    ip_address = socket.gethostbyname(host)
+                                    logger.info(f"✅ 호스트 {host}의 IP 주소 확인: {ip_address}")
+                                    
+                                    # URL에서 호스트 이름을 IP 주소로 교체
+                                    database_url = database_url.replace(f"@{host}:", f"@{ip_address}:")
+                                    logger.info(f"✅ URL의 호스트 이름을 IP 주소로 변경했습니다.")
+                                    break
+                                except socket.gaierror:
+                                    if attempt < max_attempts - 1:
+                                        wait_time = 2 ** attempt  # 지수 백오프 (1, 2, 4초)
+                                        logger.warning(f"⚠️ 호스트 이름 해석 실패. {wait_time}초 후 재시도 ({attempt+1}/{max_attempts})...")
+                                        time.sleep(wait_time)
+                                    else:
+                                        logger.error(f"❌ 호스트 이름 '{host}' 해석 실패. 원본 URL을 사용합니다.")
+                        except Exception as dns_err:
+                            logger.error(f"❌ DNS 조회 중 오류 발생: {str(dns_err)}")
             except Exception as e:
                 logger.warning(f"⚠️ 호스트 이름 확인 중 오류: {str(e)}")
             
@@ -75,6 +98,17 @@ class DataBaseSingleton:
         # ✅ 환경 변수 검증
         if None in (self.db_hostname, self.db_username, self.db_password, self.db_database):
             raise ValueError("⚠️ Database 환경 변수가 설정되지 않았습니다.")
+
+        # ✅ 호스트 이름이 도메인인 경우 IP 주소로 변환 시도
+        if not re.match(r'^\d+\.\d+\.\d+\.\d+$', self.db_hostname):
+            try:
+                ip_address = socket.gethostbyname(self.db_hostname)
+                logger.info(f"✅ 호스트 {self.db_hostname}의 IP 주소 확인: {ip_address}")
+                self.db_hostname = ip_address
+            except socket.gaierror:
+                logger.warning(f"⚠️ 호스트 이름 '{self.db_hostname}'의 IP 주소를 확인할 수 없습니다. 원본 호스트 이름을 사용합니다.")
+            except Exception as e:
+                logger.warning(f"⚠️ IP 주소 변환 중 오류 발생: {str(e)}")
 
         # ✅ PostgreSQL에 맞는 URL 형식 (asyncpg 드라이버 사용)
         self.db_url = f"postgresql+asyncpg://{self.db_username}:{self.db_password}@{self.db_hostname}:{self.db_port}/{self.db_database}"
