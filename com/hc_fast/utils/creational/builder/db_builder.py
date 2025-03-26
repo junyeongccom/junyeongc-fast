@@ -3,12 +3,15 @@ import os
 import asyncpg
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker
 from com.hc_fast.utils.creational.builder.query_builder import QueryBuilder
 from com.hc_fast.utils.creational.singleton.db_singleton import db_singleton
 import traceback
+import logging
 
+# 로거 설정
+logger = logging.getLogger(__name__)
 
 class DatabaseBuilder:
     def __init__(self):
@@ -19,43 +22,58 @@ class DatabaseBuilder:
 
         self.database_url = db_singleton.db_url
         self.engine = None
-        self.async_session = None
+        self.pool = None
 
     async def build(self):
         if not self.database_url:
             raise ValueError("⚠️ Database URL must be set before building the database")
 
+        # 'database' 호스트 이름을 'localhost'로 변경 (Render.com 환경에서 필요)
+        if "@database:" in self.database_url:
+            old_url = self.database_url
+            self.database_url = self.database_url.replace("@database:", "@localhost:")
+            print(f"⚠️ 데이터베이스 URL의 호스트 이름을 변경합니다: database -> localhost")
+
         print(f"🚀 Connecting to PostgreSQL: {self.database_url}")
 
-        # SQLAlchemy async engine 생성
-        self.engine = create_async_engine(
-            self.database_url,
-            echo=True,  # SQL 로그 출력
-            pool_size=5,
-            max_overflow=10
-        )
+        try:
+            # SQLAlchemy async engine 생성
+            self.engine = create_async_engine(
+                self.database_url,
+                echo=True,  # SQL 로그 출력
+                pool_size=5,
+                max_overflow=10,
+                pool_pre_ping=True,  # 연결 확인
+                pool_recycle=3600,   # 1시간마다 연결 재활용
+            )
 
-        # AsyncSession 생성
-        async_session = sessionmaker(
-            self.engine,
-            class_=AsyncSession,
-            expire_on_commit=False
-        )
+            # 연결 풀 생성
+            self.pool = async_sessionmaker(
+                bind=self.engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
+                autocommit=False,
+                autoflush=False
+            )
 
-        return AsyncDatabase(self.engine, async_session)
+            return AsyncDatabase(self.pool)
+        except Exception as e:
+            print(f"❌ 데이터베이스 연결 중 오류 발생: {str(e)}")
+            traceback.print_exc()
+            raise
 
 
 class AsyncDatabase:
-    def __init__(self, engine, async_session):
-        self.engine = engine
-        self.async_session = async_session
+    def __init__(self, pool):
+        self.pool = pool
 
     async def fetch(self, query, *args):
         try:
             print(f"🔍 실행할 쿼리: {query}")
             print(f"🔢 쿼리 매개변수: {args}")
             
-            async with self.async_session() as session:
+            # 연결 풀에서 세션 획득
+            async with self.pool() as session:
                 # 쿼리가 문자열인 경우 text() 함수로 감싸기
                 if isinstance(query, str):
                     print("💬 문자열 쿼리를 SQLAlchemy text() 객체로 변환합니다.")
@@ -75,34 +93,34 @@ class AsyncDatabase:
             print(f"🔨 실행할 쿼리: {query}")
             print(f"🔢 쿼리 매개변수: {args}")
             
-            async with self.async_session() as session:
-                # 쿼리가 문자열인 경우 text() 함수로 감싸기
-                if isinstance(query, str):
-                    print("💬 문자열 쿼리를 SQLAlchemy text() 객체로 변환합니다.")
-                    query = text(query)
-                
-                result = await session.execute(query, args)
-                await session.commit()
-                print("✅ 쿼리가 성공적으로 실행되고 커밋되었습니다.")
-                return result
+            # 연결 풀에서 세션 획득
+            async with self.pool() as session:
+                try:
+                    # 쿼리가 문자열인 경우 text() 함수로 감싸기
+                    if isinstance(query, str):
+                        print("💬 문자열 쿼리를 SQLAlchemy text() 객체로 변환합니다.")
+                        query = text(query)
+                    
+                    result = await session.execute(query, args)
+                    await session.commit()
+                    print("✅ 쿼리가 성공적으로 실행되고 커밋되었습니다.")
+                    return result
+                except Exception as inner_e:
+                    await session.rollback()
+                    print(f"❌ 쿼리 실행 중 오류로 롤백합니다: {str(inner_e)}")
+                    raise
         except Exception as e:
             print(f"❌ 쿼리 실행 중 오류 발생: {str(e)}")
             traceback.print_exc()
             raise
 
     async def close(self):
-        await self.engine.dispose()
+        if hasattr(self, 'engine') and self.engine:
+            await self.engine.dispose()
+        print("✅ 데이터베이스 연결이 정상적으로 종료되었습니다.")
 
 
-# ✅ 3. FastAPI와 연동을 위한 Database Session Generator
-# def get_db():
-#     """SQLAlchemy 세션을 제공하는 FastAPI 종속성"""
-#     db = session_local()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
-
+# FastAPI와 연동을 위한 Database Session 의존성
 async def get_db():
     if not hasattr(db_singleton, "db_url") or not db_singleton.db_url:
         raise AttributeError("❌ db_singleton이 올바르게 초기화되지 않았습니다.")
