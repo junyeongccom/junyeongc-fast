@@ -31,6 +31,15 @@ class DataBaseSingleton:
         # Render.com에서 제공하는 DATABASE_URL이 있는지 먼저 확인
         database_url = os.getenv("DATABASE_URL")
         
+        # Render.com의 경우 환경 변수가 설정되어 있지 않으면 하드코딩된 URL 사용
+        # 실제 배포시 반드시 환경 변수로 설정해야 함
+        if not database_url and "RENDER" in os.environ:
+            logger.warning("⚠️ DATABASE_URL 환경 변수가 설정되지 않았습니다. 지정된 기본값을 사용합니다.")
+            # Render.com에는 PostgreSQL 내장 서비스가 있으므로 해당 URL로 연결 시도
+            # 이것은 임시 조치이며, 실제로는 환경 변수를 설정해야 함
+            database_url = "postgresql://postgres:postgres@localhost:5432/postgres"
+            logger.warning(f"⚠️ 임시 데이터베이스 URL 사용 중: {database_url}")
+            
         # DATABASE_URL이 있으면 이를 우선적으로 사용
         if database_url:
             logger.info("✅ DATABASE_URL 환경 변수를 사용합니다.")
@@ -60,6 +69,18 @@ class DataBaseSingleton:
                     # IP 주소 형식이 아닌 경우 DNS 확인 시도
                     if not re.match(r'^\d+\.\d+\.\d+\.\d+$', host):
                         logger.info(f"ℹ️ 호스트 도메인 이름을 확인 중입니다: {host}")
+                        
+                        # 'database'와 같은 사용자 정의 호스트 이름의 경우
+                        if host == 'database':
+                            logger.warning("⚠️ 'database'는 사용자 정의 호스트 이름입니다.")
+                            
+                            # Render.com 환경에서는 실제 데이터베이스 호스트를 사용
+                            if "RENDER" in os.environ:
+                                # 기본 Render 내부 PostgreSQL 서비스를 사용 (임시)
+                                logger.warning("⚠️ Render 환경에서는 'database' 호스트명을 'localhost'로 변경합니다.")
+                                database_url = database_url.replace('@database:', '@localhost:')
+                                host = 'localhost'
+                                
                         try:
                             # DNS 조회를 위한 최대 3번의 시도
                             max_attempts = 3
@@ -79,6 +100,16 @@ class DataBaseSingleton:
                                         time.sleep(wait_time)
                                     else:
                                         logger.error(f"❌ 호스트 이름 '{host}' 해석 실패. 원본 URL을 사용합니다.")
+                                        
+                                        # 마지막 시도에서도 실패한 경우, docker 컨테이너 내에서는 
+                                        # 'database'를 'localhost'로 변경 시도
+                                        if host == 'database':
+                                            logger.warning("⚠️ 'database' 호스트명을 'postgres'로 변경 시도합니다.")
+                                            database_url = database_url.replace('@database:', '@postgres:')
+                                            # 마지막 대체 시도: 표준 PostgreSQL 포트를 가진 로컬호스트
+                                            if "localhost" not in database_url and "127.0.0.1" not in database_url:
+                                                logger.warning("⚠️ 마지막 시도: localhost로 연결을 시도합니다.")
+                                                database_url = database_url.replace(f"@{host}:", "@localhost:")
                         except Exception as dns_err:
                             logger.error(f"❌ DNS 조회 중 오류 발생: {str(dns_err)}")
             except Exception as e:
@@ -88,7 +119,7 @@ class DataBaseSingleton:
             return
             
         # 개별 환경 변수 설정 (로컬 개발 환경)
-        self.db_hostname = os.getenv("DB_HOSTNAME", "database")
+        self.db_hostname = os.getenv("DB_HOSTNAME", "localhost")
         self.db_username = os.getenv("DB_USERNAME", "postgres")
         self.db_password = os.getenv("DB_PASSWORD", "mypassword")
         self.db_port = int(os.getenv("DB_PORT", "5432"))
@@ -107,6 +138,11 @@ class DataBaseSingleton:
                 self.db_hostname = ip_address
             except socket.gaierror:
                 logger.warning(f"⚠️ 호스트 이름 '{self.db_hostname}'의 IP 주소를 확인할 수 없습니다. 원본 호스트 이름을 사용합니다.")
+                
+                # 'database'와 같은 특수 호스트 이름의 경우 대체 처리
+                if self.db_hostname == 'database':
+                    logger.warning("⚠️ 'database' 호스트 이름이 해석되지 않아 'localhost'로 변경합니다.")
+                    self.db_hostname = 'localhost'
             except Exception as e:
                 logger.warning(f"⚠️ IP 주소 변환 중 오류 발생: {str(e)}")
 
