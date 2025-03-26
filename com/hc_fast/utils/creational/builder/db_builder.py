@@ -3,18 +3,30 @@ import asyncpg
 import traceback
 from dotenv import load_dotenv
 
-from com.hc_fast.utils.creational.builder.query_builder import QueryBuilder
 from com.hc_fast.utils.creational.singleton.db_singleton import db_singleton
 
-# .env 파일 경로 명시적 지정
-dotenv_path = os.path.join(os.path.dirname(__file__), '../../../../.env')
-print(f"✅ db_builder에서 탐색할 .env 파일 경로: {dotenv_path}")
-print(f"✅ 해당 파일 존재 여부: {os.path.exists(dotenv_path)}")
+# 여러 방법으로 .env 파일 경로 시도
+possible_paths = [
+    # 1. 프로젝트 루트 디렉토리
+    os.path.join(os.getcwd(), '.env'),
+    # 2. 현재 파일의 상대 경로
+    os.path.join(os.path.dirname(__file__), '../../../../.env'),
+    # 3. Docker 컨테이너 내부 경로
+    '/app/.env'
+]
 
-# 명시적 경로로 환경 변수 로드
-load_dotenv(dotenv_path)
+env_file_found = False
+for path in possible_paths:
+    if os.path.exists(path):
+        print(f"✅ db_builder.py: .env 파일을 찾았습니다: {path}")
+        load_dotenv(path)
+        env_file_found = True
+        break
 
-# Async Database Builder
+if not env_file_found:
+    print("⚠️ db_builder.py: .env 파일을 찾지 못했습니다. 환경 변수가 이미 설정되어 있는지 확인합니다.")
+
+# Async Database Builder - 코어 방식 (raw SQL, 순수 함수, 상태 없음)
 class DatabaseBuilder:
     def __init__(self):
         if not hasattr(db_singleton, "db_url"):
@@ -33,7 +45,7 @@ class DatabaseBuilder:
         self.max_size = max_size
         return self
 
-    def timeout(self, timeout: int = 60):
+    def set_timeout(self, timeout: int = 60):
         self.timeout = timeout
         return self
 
@@ -41,16 +53,10 @@ class DatabaseBuilder:
         if not self.database_url:
             raise ValueError("⚠️ Database URL must be set before building the database")
 
-        # 'database' 호스트 이름을 'localhost'로 변경 (Render.com 환경에서 필요)
-        if "@database:" in self.database_url:
-            old_url = self.database_url
-            self.database_url = self.database_url.replace("@database:", "@localhost:")
-            print(f"⚠️ 데이터베이스 URL의 호스트 이름을 변경합니다: database -> localhost")
-
         print(f"🚀 Connecting to PostgreSQL: {self.database_url}")
 
         try:
-            # asyncpg 풀 생성 - 원래 방식으로 복원
+            # asyncpg 풀 생성
             self.pool = await asyncpg.create_pool(
                 dsn=self.database_url,
                 min_size=self.min_size,
@@ -73,6 +79,7 @@ class AsyncDatabase:
         self.pool = pool
 
     async def fetch(self, query: str, *args):
+        """Raw SQL 쿼리를 실행하고 여러 행의 결과를 반환합니다."""
         try:
             print(f"🔍 실행할 쿼리: {query}")
             print(f"🔢 쿼리 매개변수: {args}")
@@ -87,6 +94,7 @@ class AsyncDatabase:
             raise
 
     async def execute(self, query: str, *args):
+        """Raw SQL 쿼리를 실행하고 영향을 받은、 행 수나 상태를 반환합니다."""
         try:
             print(f"🔨 실행할 쿼리: {query}")
             print(f"🔢 쿼리 매개변수: {args}")
@@ -105,6 +113,7 @@ class AsyncDatabase:
             raise
 
     async def close(self):
+        """데이터베이스 연결 풀을 닫습니다."""
         await self.pool.close()
         print("✅ 데이터베이스 연결 풀이 정상적으로 종료되었습니다.")
 
@@ -116,9 +125,11 @@ async def get_db():
         print("⚠️ db_singleton이 올바르게 초기화되지 않았습니다. 환경 변수를 다시 로드합니다.")
         
         # 환경 변수 재로드
-        dotenv_path = os.path.join(os.path.dirname(__file__), '../../../../.env')
-        print(f"✅ get_db에서 .env 파일 재로드: {dotenv_path}")
-        load_dotenv(dotenv_path)
+        for path in possible_paths:
+            if os.path.exists(path):
+                print(f"✅ get_db()에서 .env 파일 재로드: {path}")
+                load_dotenv(path)
+                break
         
         # 환경 변수 출력
         print("DB_HOSTNAME:", os.getenv("DB_HOSTNAME"))
@@ -155,35 +166,39 @@ async def get_db():
         await db.close()
 
 
-# ✅ 4. 초기화 함수 (비동기 DB 테이블 생성)
-async def init_db():
-    """데이터베이스 초기화"""
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        raise e
-
-
-# ✅ 5. 사용 예시
+# 사용 예시 (코어 방식)
 if __name__ == "__main__":
-    # 🔹 SQLAlchemy DB 설정 빌드
-    db_builder = (
-        DatabaseBuilder()
-        .echo(True)
-        .future(True)
-        .build()
-    )
-
-    engine = db_builder._engine
-    session_local = db_builder._session_local
-    Base = db_builder._base
-
-    # 🔹 pymysql 쿼리 실행 예시
-    query_result = (
-        QueryBuilder()
-        .connect()
-        .query("SELECT * FROM users")
-        .execute()
-    )
+    import asyncio
     
-    print(f"Query Result: {query_result}")
+    async def test_db_operations():
+        # DB 연결 생성
+        builder = DatabaseBuilder()
+        db = await builder.build()
+        
+        try:
+            # 테이블 생성 (생성되어 있다면 무시)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS test_users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(50) UNIQUE NOT NULL,
+                    email VARCHAR(100) UNIQUE NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # 데이터 삽입
+            await db.execute(
+                "INSERT INTO test_users (username, email) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+                "testuser", "test@example.com"
+            )
+            
+            # 데이터 조회
+            users = await db.fetch("SELECT * FROM test_users")
+            print(f"사용자 목록: {users}")
+            
+        finally:
+            # 연결 종료
+            await db.close()
+    
+    # 비동기 함수 실행
+    asyncio.run(test_db_operations())

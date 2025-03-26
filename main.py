@@ -9,10 +9,26 @@ from com.hc_fast.utils.creational.singleton.db_singleton import db_singleton
 from dotenv import load_dotenv
 import os
 
-# ✅ .env 로드 (명시적 경로로)
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-print(f"✅ main.py에서 .env 로드: {dotenv_path}")
-load_dotenv(dotenv_path, override=True)
+# 여러 방법으로 .env 파일 경로 시도
+possible_paths = [
+    # 1. 프로젝트 루트 디렉토리 (일반적인 상황)
+    os.path.join(os.path.dirname(__file__), '.env'),
+    # 2. 현재 작업 디렉토리
+    os.path.join(os.getcwd(), '.env'),
+    # 3. Docker 컨테이너 내부 경로
+    '/app/.env'
+]
+
+env_file_found = False
+for path in possible_paths:
+    if os.path.exists(path):
+        print(f"✅ main.py: .env 파일을 찾았습니다: {path}")
+        load_dotenv(path, override=True)
+        env_file_found = True
+        break
+
+if not env_file_found:
+    print("⚠️ main.py: .env 파일을 찾지 못했습니다. 환경 변수가 이미 설정되어 있는지 확인합니다.")
 
 # ✅ FastAPI 앱 초기화
 app = FastAPI()

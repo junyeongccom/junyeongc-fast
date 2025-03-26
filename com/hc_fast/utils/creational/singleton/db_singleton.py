@@ -2,13 +2,26 @@ import os
 from threading import Lock
 from dotenv import load_dotenv
 
-# ✅ 명시적인 .env 파일 경로 지정
-dotenv_path = os.path.join(os.path.dirname(__file__), '../../../../.env')
-print(f"✅ 탐색할 .env 파일 경로: {dotenv_path}")
-print(f"✅ 해당 파일 존재 여부: {os.path.exists(dotenv_path)}")
+# 여러 방법으로 .env 파일 경로 시도
+possible_paths = [
+    # 1. 프로젝트 루트 디렉토리
+    os.path.join(os.getcwd(), '.env'),
+    # 2. 현재 파일의 상대 경로
+    os.path.join(os.path.dirname(__file__), '../../../../.env'),
+    # 3. Docker 컨테이너 내부 경로
+    '/app/.env'
+]
 
-# ✅ 명시적 경로로 환경 변수 로드
-load_dotenv(dotenv_path)
+env_file_found = False
+for path in possible_paths:
+    if os.path.exists(path):
+        print(f"✅ .env 파일을 찾았습니다: {path}")
+        load_dotenv(path)
+        env_file_found = True
+        break
+
+if not env_file_found:
+    print("⚠️ .env 파일을 찾지 못했습니다. 환경 변수가 이미 설정되어 있는지 확인합니다.")
 
 class DataBaseSingleton:
 
