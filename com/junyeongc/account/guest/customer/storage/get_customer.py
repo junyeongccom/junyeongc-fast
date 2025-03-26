@@ -8,12 +8,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 class GetAllRepository(AbstractService):
-    async def handle(self, db: AsyncSession, **kwargs):
-        return await self.retrieve(db, **kwargs)
-        
-    async def retrieve(self, db: AsyncSession, **kwargs):
+    async def handle(self, **kwargs):
         logger.info("🎉 GetAllRepository.retrieve 메서드 실행")
-        
+        db: AsyncSession = kwargs.get('db')
         try:
             # SQLAlchemy Core를 사용한 쿼리 (명시적으로 text() 함수 사용)
             stmt = select(UserEntity)

@@ -46,24 +46,3 @@ class CustomerFactory:
 
         # 항상 handle 메소드 호출
         return await instance.handle(**kwargs)
-
-    # 고객 관련 메서드들
-    @staticmethod
-    def create_customer(strategy: str):
-        return StrategyType.CREATE_CUSTOMER
-        
-    @staticmethod
-    def get_customer_detail(strategy: str):
-        return StrategyType.GET_DETAIL
-        
-    @staticmethod
-    def get_customer_list(strategy: str):
-        return StrategyType.GET_ALL
-        
-    @staticmethod
-    def update_customer(strategy: str):
-        return StrategyType.FULL_UPDATE
-        
-    @staticmethod
-    def delete_customer(strategy: str):
-        return StrategyType.DELETE_CUSTOMER
