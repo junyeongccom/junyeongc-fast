@@ -1,92 +1,133 @@
 import os
 import asyncpg
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import sessionmaker
 from com.hc_fast.utils.creational.builder.query_builder import QueryBuilder
-from com.hc_fast.utils.creational.singleton import db_singleton
+from com.hc_fast.utils.creational.singleton.db_singleton import db_singleton
+import traceback
+
 # Async Database Builder
 class DatabaseBuilder:
     def __init__(self):
         if not hasattr(db_singleton, "db_url"):
             raise AttributeError("⚠️ db_singleton 인스턴스에 'db_url' 속성이 존재하지 않습니다.")
         
-        print(f"✅ Initializing DatabaseBuilder... db_url: {db_singleton.db_url}")  # 디버깅
+        print(f"✅ Initializing DatabaseBuilder... db_url: {db_singleton.db_url}")
 
         self.database_url = db_singleton.db_url
-        self.min_size = 1
-        self.max_size = 10
-        self.timeout = 60
+        self.engine = None
         self.pool = None
-
-
-
-    def pool_size(self, min_size: int = 1, max_size: int = 10):
-        self.min_size = min_size
-        self.max_size = max_size
-        return self
-
-    def timeout(self, timeout: int = 60):
-        self.timeout = timeout
-        return self
 
     async def build(self):
         if not self.database_url:
             raise ValueError("⚠️ Database URL must be set before building the database")
 
-        print(f"🚀 Connecting to PostgreSQL: {self.database_url}")  # 디버깅
+        # 'database' 호스트 이름을 'localhost'로 변경 (Render.com 환경에서 필요)
+        if "@database:" in self.database_url:
+            old_url = self.database_url
+            self.database_url = self.database_url.replace("@database:", "@localhost:")
+            print(f"⚠️ 데이터베이스 URL의 호스트 이름을 변경합니다: database -> localhost")
 
-        self.pool = await asyncpg.create_pool(
-            dsn=self.database_url,
-            min_size=self.min_size,
-            max_size=self.max_size,
-            timeout=self.timeout,
-        )
-        return AsyncDatabase(self.pool)
+        print(f"🚀 Connecting to PostgreSQL: {self.database_url}")
 
-# Async Database Wrapper
+        try:
+            # SQLAlchemy async engine 생성
+            self.engine = create_async_engine(
+                self.database_url,
+                echo=True,  # SQL 로그 출력
+                pool_size=5,
+                max_overflow=10,
+                pool_pre_ping=True,  # 연결 확인
+                pool_recycle=3600,   # 1시간마다 연결 재활용
+            )
+
+            # 연결 풀 생성
+            self.pool = async_sessionmaker(
+                bind=self.engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
+                autocommit=False,
+                autoflush=False
+            )
+
+            return AsyncDatabase(self.pool)
+        except Exception as e:
+            print(f"❌ 데이터베이스 연결 중 오류 발생: {str(e)}")
+            traceback.print_exc()
+            raise
+
+
 class AsyncDatabase:
     def __init__(self, pool):
         self.pool = pool
 
-    async def fetch(self, query: str, *args):
-        async with self.pool.acquire() as connection:
-            return await connection.fetch(query, *args)
+    async def fetch(self, query, *args):
+        try:
+            print(f"🔍 실행할 쿼리: {query}")
+            print(f"🔢 쿼리 매개변수: {args}")
+            
+            # 연결 풀에서 세션 획득
+            async with self.pool() as session:
+                # 쿼리가 문자열인 경우 text() 함수로 감싸기
+                if isinstance(query, str):
+                    print("💬 문자열 쿼리를 SQLAlchemy text() 객체로 변환합니다.")
+                    query = text(query)
+                
+                result = await session.execute(query, args)
+                rows = result.fetchall()
+                print(f"✅ 쿼리 실행 결과: {len(rows)}개의 행 반환됨")
+                return rows
+        except Exception as e:
+            print(f"❌ 쿼리 실행 중 오류 발생: {str(e)}")
+            traceback.print_exc()
+            raise
 
-    async def execute(self, query: str, *args):
-        async with self.pool.acquire() as connection:
-            return await connection.execute(query, *args)
+    async def execute(self, query, *args):
+        try:
+            print(f"🔨 실행할 쿼리: {query}")
+            print(f"🔢 쿼리 매개변수: {args}")
+            
+            # 연결 풀에서 세션 획득
+            async with self.pool() as session:
+                try:
+                    # 쿼리가 문자열인 경우 text() 함수로 감싸기
+                    if isinstance(query, str):
+                        print("💬 문자열 쿼리를 SQLAlchemy text() 객체로 변환합니다.")
+                        query = text(query)
+                    
+                    result = await session.execute(query, args)
+                    await session.commit()
+                    print("✅ 쿼리가 성공적으로 실행되고 커밋되었습니다.")
+                    return result
+                except Exception as inner_e:
+                    await session.rollback()
+                    print(f"❌ 쿼리 실행 중 오류로 롤백합니다: {str(inner_e)}")
+                    raise
+        except Exception as e:
+            print(f"❌ 쿼리 실행 중 오류 발생: {str(e)}")
+            traceback.print_exc()
+            raise
 
     async def close(self):
-        await self.pool.close()
+        if hasattr(self, 'engine') and self.engine:
+            await self.engine.dispose()
+        print("✅ 데이터베이스 연결이 정상적으로 종료되었습니다.")
 
 
-
-# ✅ 3. FastAPI와 연동을 위한 Database Session Generator
-# def get_db():
-#     """SQLAlchemy 세션을 제공하는 FastAPI 종속성"""
-#     db = session_local()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
-
+# FastAPI와 연동을 위한 Database Session 의존성
 async def get_db():
-
-    load_dotenv()
-
     if not hasattr(db_singleton, "db_url") or not db_singleton.db_url:
-        print("⚠️ db_singleton이 올바르게 초기화되지 않았습니다. 환경 변수를 다시 로드합니다.")
-        db_singleton.db_url = os.getenv("DB_URL")
-        
-        if not db_singleton.db_url:
-            raise AttributeError("❌ 환경 변수를 다시 로드했지만 'db_url'이 설정되지 않았습니다. .env 파일을 확인하세요.")
+        raise AttributeError("❌ db_singleton이 올바르게 초기화되지 않았습니다.")
 
-    print(f"✅ db_singleton 초기화 확인: {db_singleton.db_url}")  # Debug 로그
+    print(f"✅ db_singleton 초기화 확인: {db_singleton.db_url}")
 
     builder = DatabaseBuilder()
     db = await builder.build()
 
     try:
-        yield db  # ✅ FastAPI의 Depends()에서 사용할 수 있도록 yield로 반환
+        yield db
     finally:
         await db.close()
 
