@@ -6,6 +6,7 @@ from com.junyeongc.app_router import router as app_router
 import logging
 import os
 import traceback
+from contextlib import asynccontextmanager
 
 # 로깅 설정
 logging.basicConfig(
@@ -14,7 +15,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 시작 시 실행 코드
+    logger.info("======== 서버 시작 1 ========")
+    logger.info(f"환경: {os.environ.get('ENVIRONMENT', '개발')}")
+    logger.info(f"데이터베이스 URL: {'설정됨 (보안상 내용 표시 안함)' if os.environ.get('DATABASE_URL') else '설정되지 않음'}")
+
+    # 시스템 환경 변수 확인 (개발 환경에서만)
+    if os.environ.get('ENVIRONMENT') != 'production':
+        render_hostname = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+        if render_hostname:
+            logger.info(f"Render 호스트: {render_hostname}")
+    
+    logger.info("=============================")
+    yield
+    # 종료 시 실행 코드
+    logger.info("======== 서버 종료 ========")
+
+app = FastAPI(lifespan=lifespan)
 
 # CORS 미들웨어를 가장 먼저 추가
 app.add_middleware(
@@ -67,20 +86,5 @@ async def home():
 </div>
 </body>
 """)
-
-# 시작 시 환경 정보 로깅
-@app.on_event("startup")
-async def startup_event():
-    logger.info("======== 서버 시작 ========")
-    logger.info(f"환경: {os.environ.get('ENVIRONMENT', '개발')}")
-    logger.info(f"데이터베이스 URL: {'설정됨 (보안상 내용 표시 안함)' if os.environ.get('DATABASE_URL') else '로컬 설정 사용'}")
-    
-    # 시스템 환경 변수 확인 (개발 환경에서만)
-    if os.environ.get('ENVIRONMENT') != 'production':
-        render_hostname = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-        if render_hostname:
-            logger.info(f"Render 호스트: {render_hostname}")
-    
-    logger.info("============================")
 
 
