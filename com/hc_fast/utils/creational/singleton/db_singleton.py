@@ -15,13 +15,13 @@ possible_paths = [
 env_file_found = False
 for path in possible_paths:
     if os.path.exists(path):
-        print(f"✅ .env 파일을 찾았습니다: {path}")
-        load_dotenv(path)
+        print(f"✅ db_singleton: .env 파일을 찾았습니다: {path}")
+        load_dotenv(path, override=True)
         env_file_found = True
         break
 
 if not env_file_found:
-    print("⚠️ .env 파일을 찾지 못했습니다. 환경 변수가 이미 설정되어 있는지 확인합니다.")
+    print("⚠️ db_singleton: .env 파일을 찾지 못했습니다. 환경 변수가 이미 설정되어 있는지 확인합니다.")
 
 class DataBaseSingleton:
 
@@ -51,8 +51,18 @@ class DataBaseSingleton:
         
         # 우선 DATABASE_URL 환경 변수 확인
         direct_url = os.getenv("DATABASE_URL")
+        
+        # 현재 실행 환경 확인 (Docker 내부인지 여부)
+        is_docker = os.path.exists('/.dockerenv')
+        print(f"✅ Docker 환경 여부: {is_docker}")
+        
         if direct_url:
             print("✅ DATABASE_URL 환경 변수를 사용합니다.")
+            
+            # Docker 외부에서 실행되고 있고, URL에 postgres_container가 포함되어 있다면 localhost로 변경
+            if not is_docker and "postgres_container" in direct_url:
+                direct_url = direct_url.replace("postgres_container", "localhost")
+                print(f"✅ 로컬 환경용으로 DB URL 변경: {direct_url}")
             
             # asyncpg는 'postgresql://' 형식을 사용
             self.db_url = direct_url
@@ -67,6 +77,11 @@ class DataBaseSingleton:
         self.db_port = int(os.getenv("DB_PORT", 5432))
         self.db_database = os.getenv("DB_DATABASE")
         self.db_charset = os.getenv("DB_CHARSET", "utf8mb4")
+        
+        # Docker 외부에서 실행 중이고 호스트명이 postgres_container라면 localhost로 변경
+        if not is_docker and self.db_hostname == "postgres_container":
+            self.db_hostname = "localhost"
+            print(f"✅ 로컬 환경용으로 DB 호스트명 변경: {self.db_hostname}")
 
         # ✅ 환경 변수 검증
         if None in (self.db_hostname, self.db_username, self.db_password, self.db_database):

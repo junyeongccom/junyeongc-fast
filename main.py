@@ -1,11 +1,9 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-
 from com.hc_fast.app_router import router as app_router
 from com.hc_fast.utils.creational.builder.db_builder import get_db
 from com.hc_fast.utils.creational.singleton.db_singleton import db_singleton
-
 from dotenv import load_dotenv
 import os
 
@@ -62,5 +60,4 @@ async def test_db_connection(db=Depends(get_db)):
     result = await db.fetch("SELECT 1;")
     return {"db_check": result}
 
-
-print(f"💯 main.py에서 직접 확인: db_singleton.db_url ▶ {db_singleton.db_url}")
+print(f"💯 DB URL: {db_singleton.db_url}")
