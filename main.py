@@ -8,9 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 # ✅ FastAPI 애플리케이션 생성
 app = FastAPI()
 # ✅ CORS 설정 추가
+
+origins = [
+    "http://localhost:3000",            # 프론트 개발용
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 🔥 모든 도메인에서 요청 허용 (보안상 필요하면 특정 도메인만 허용)
+    allow_origins=origins,  # 🔥 모든 도메인에서 요청 허용 (보안상 필요하면 특정 도메인만 허용)
     allow_credentials=True,
     allow_methods=["*"],  # ✅ 모든 HTTP 메서드 허용 (POST, OPTIONS 등)
     allow_headers=["*"],  # ✅ 모든 헤더 허용
