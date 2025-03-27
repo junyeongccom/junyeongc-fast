@@ -1,63 +1,47 @@
-from fastapi import FastAPI, Depends
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse
+from contextlib import asynccontextmanager
+from com.hc_fast.utils.config.db_config import engine
 from com.hc_fast.app_router import router as app_router
-from com.hc_fast.utils.creational.builder.db_builder import get_db
-from com.hc_fast.utils.creational.singleton.db_singleton import db_singleton
-from dotenv import load_dotenv
-import os
+from fastapi.middleware.cors import CORSMiddleware  
 
-# 여러 방법으로 .env 파일 경로 시도
-possible_paths = [
-    # 1. 프로젝트 루트 디렉토리 (일반적인 상황)
-    os.path.join(os.path.dirname(__file__), '.env'),
-    # 2. 현재 작업 디렉토리
-    os.path.join(os.getcwd(), '.env'),
-    # 3. Docker 컨테이너 내부 경로
-    '/app/.env'
-]
-
-env_file_found = False
-for path in possible_paths:
-    if os.path.exists(path):
-        print(f"✅ main.py: .env 파일을 찾았습니다: {path}")
-        load_dotenv(path, override=True)
-        env_file_found = True
-        break
-
-if not env_file_found:
-    print("⚠️ main.py: .env 파일을 찾지 못했습니다. 환경 변수가 이미 설정되어 있는지 확인합니다.")
-
-# ✅ FastAPI 앱 초기화
+# ✅ FastAPI 애플리케이션 생성
 app = FastAPI()
-
-# ✅ CORS 설정
+# ✅ CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # 🔥 모든 도메인에서 요청 허용 (보안상 필요하면 특정 도메인만 허용)
+    allow_credentials=True,
+    allow_methods=["*"],  # ✅ 모든 HTTP 메서드 허용 (POST, OPTIONS 등)
+    allow_headers=["*"],  # ✅ 모든 헤더 허용
 )
+
+# ✅ 애플리케이션 시작 시 `init_db()` 실행
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🚀🚀🚀🚀 FastAPI 앱이 시작됩니다. 데이터베이스 초기화 중...")
+    # await init_db()  # ✅ DB 초기화 실행
+    print("✅ 데이터베이스 초기화 완료!")
+    yield  # 애플리케이션이 실행되는 동안 유지
+    print("🛑 FastAPI 앱이 종료됩니다.")
+    await engine.dispose()  # 🔥 모든 커넥션 정리
+    print("✅ DB 연결이 정상적으로 종료되었습니다.")
 
 # ✅ 라우터 등록
 app.include_router(app_router, prefix="/api")
 
-# ✅ 루트 경로
-@app.get("/", response_class=HTMLResponse)
+def current_time():
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+@app.get(path="/")
 async def home():
-    return """
-    <html>
-        <body>
-            <h1>🚀 FastAPI 테스트 서버 실행 중!</h1>
-        </body>
-    </html>
-    """
-
-# ✅ DB 연결 테스트용 엔드포인트
-@app.get("/health/db")
-async def test_db_connection(db=Depends(get_db)):
-    result = await db.fetch("SELECT 1;")
-    return {"db_check": result}
-
-print(f"💯 DB URL: {db_singleton.db_url}")
+    return HTMLResponse(content=f"""
+<body>
+<div style="width: 400px; margin: 50 auto;">
+    <h1> 현재 서버 구동 중입니다.</h1>
+    <h2>{current_time()}</h2>
+</div>
+</body>
+""")
